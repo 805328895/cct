@@ -1,27 +1,26 @@
-package com.cct.service1.adv;
+package com.cct.mybatis.adv;
 
 import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
 import com.cct.rpc.client.CctRpcClientProxy;
+import com.cct.rpc.local.CctTransactionModel;
+import com.cct.rpc.local.CctTransactionalFactory;
 import com.cct.rpc.service.TranactionService;
-import javafx.scene.control.Tab;
 import lombok.extern.slf4j.Slf4j;
 import model.InsertResponse;
 import org.apache.ibatis.executor.Executor;
-import org.apache.ibatis.executor.statement.StatementHandler;
-import org.apache.ibatis.mapping.*;
+import org.apache.ibatis.mapping.BoundSql;
+import org.apache.ibatis.mapping.MappedStatement;
+import org.apache.ibatis.mapping.ParameterMapping;
+import org.apache.ibatis.mapping.SqlCommandType;
 import org.apache.ibatis.plugin.*;
-import org.apache.ibatis.reflection.DefaultReflectorFactory;
 import org.apache.ibatis.reflection.MetaObject;
-import org.apache.ibatis.reflection.factory.DefaultObjectFactory;
-import org.apache.ibatis.reflection.wrapper.DefaultObjectWrapperFactory;
 import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.session.ResultHandler;
 import org.apache.ibatis.session.RowBounds;
 import org.apache.ibatis.type.TypeHandlerRegistry;
 import org.springframework.stereotype.Component;
-
 
 import java.lang.reflect.Field;
 import java.math.BigInteger;
@@ -39,18 +38,17 @@ import java.util.regex.Matcher;
 @Component
 public class CctInterceptor implements Interceptor {
     @Override
-    public Object intercept(Invocation invocation)
-            throws Throwable {
+    public Object intercept(Invocation invocation) throws Throwable {
         // 获取xml中的一个select/update/insert/delete节点，是一条SQL语句
         MappedStatement mappedStatement = (MappedStatement) invocation.getArgs()[0];
-//        try {
 
+        CctTransactionModel transactionModel = CctTransactionalFactory.getTranactional();
 
         Object parameter = null;
         // 获取参数，if语句成立，表示sql语句有参数，参数格式是map形式
         if (invocation.getArgs().length > 1) {
             parameter = invocation.getArgs()[1];
-            System.out.println("parameter = " + parameter);
+//            System.out.println("parameter = " + parameter);
         }
         String sqlId = mappedStatement.getId(); // 获取到节点的id,即sql语句的id
 //        System.out.println("sqlId = " + sqlId);
@@ -60,37 +58,37 @@ public class CctInterceptor implements Interceptor {
         Configuration configuration = mappedStatement.getConfiguration(); // 获取节点的配置
         String sql = getSql(configuration, boundSql, sqlId); // 获取到最终的sql语句
         System.out.println("sql = " + sql);
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
         // 执行完上面的任务后，不改变原有的sql执行过程
 
-        SqlCommandType commandType = mappedStatement.getSqlCommandType();
-        if (commandType.name().toUpperCase().equals("INSERT")) {
-            CctRpcClientProxy proxy = new CctRpcClientProxy("127.0.0.1",1010);
-            TranactionService service = (TranactionService) proxy.getProxy(TranactionService.class);
-            InsertResponse response = service.insert(1,"1111",sql);
-            if( response.getKeyValues() != null && response.getKeyValues().size() ==1){
-                //回写主键
-                setValue(parameter,response.getKeyValues().get(0).get(0).getName(),response.getKeyValues().get(0).get(0).getValue());
-            }
-            return response.getCount();
-        } else if (commandType.name().toUpperCase().equals("SELECT")) {
-            CctRpcClientProxy proxy = new CctRpcClientProxy("127.0.0.1",1010);
-            TranactionService service = (TranactionService) proxy.getProxy(TranactionService.class);
-            List list = service.select(1,"1111",sql);
-            //序列化
-            List result = new ArrayList();
-            for (Object o:list){
-                Class cc = mappedStatement.getResultMaps().get(0).getType();
-                Object _object = cc.newInstance();
-                String json = JSON.toJSONString(o);
-                _object =  JSON.parseObject(json,cc);
-                result.add(_object);
-            }
-            return result;
-        } else if (commandType.name().toUpperCase().equals("UPDATE")) {
+        if(transactionModel !=null) {
+            log.info("cct rpc");
+            TranactionService service = transactionModel.getService();
+            //开启分布式事物，拦截数据
+            SqlCommandType commandType = mappedStatement.getSqlCommandType();
+            if (commandType.name().toUpperCase().equals("INSERT")) {
 
+                InsertResponse response = service.insert(transactionModel.getNo(), transactionModel.getTransactionId(), sql);
+                if (response.getKeyValues() != null && response.getKeyValues().size() == 1) {
+                    //回写主键
+                    setValue(parameter, response.getKeyValues().get(0).get(0).getName(), response.getKeyValues().get(0).get(0).getValue());
+                }
+                return response.getCount();
+            } else if (commandType.name().toUpperCase().equals("SELECT")) {
+                List list = service.select(transactionModel.getNo(), transactionModel.getTransactionId(), sql);
+                //序列化
+                List result = new ArrayList();
+                for (Object o : list) {
+                    Class cc = mappedStatement.getResultMaps().get(0).getType();
+                    Object _object = cc.newInstance();
+                    String json = JSON.toJSONString(o);
+                    _object = JSON.parseObject(json, cc);
+                    result.add(_object);
+                }
+                return result;
+            } else if (commandType.name().toUpperCase().equals("UPDATE")) {
+                Integer count = service.update(transactionModel.getNo(), transactionModel.getTransactionId(), sql);
+                return count;
+            }
         }
 
         return invocation.proceed();

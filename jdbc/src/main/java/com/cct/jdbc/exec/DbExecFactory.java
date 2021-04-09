@@ -26,6 +26,7 @@ public class DbExecFactory {
     private DataSourceFactory dataSourceFactory;
 
     public List select(Integer no,String transactionId, String sql) throws Exception{
+        log.info("select id:"+transactionId);
         PreparedStatement preparedStatement= initPrepare(no,transactionId,sql,null);
         ResultSet resultSet = preparedStatement.executeQuery();
         List list = new ArrayList();//new一个新的List
@@ -42,12 +43,14 @@ public class DbExecFactory {
     }
 
     public Integer update(Integer no,String transactionId, String sql) throws Exception{
+        log.info("update id:"+transactionId);
         PreparedStatement preparedStatement= initPrepare(no,transactionId,sql,null);
         Integer count = preparedStatement.executeUpdate();
         return count;
     }
 
     public InsertResponse insert(Integer no, String transactionId, String sql) throws Exception{
+        log.info("insert id:"+transactionId);
         PreparedStatement preparedStatement= initPrepare(no,transactionId,sql, Statement.RETURN_GENERATED_KEYS);
         Integer count = preparedStatement.executeUpdate();
         ResultSet rs = preparedStatement.getGeneratedKeys();
@@ -96,16 +99,17 @@ public class DbExecFactory {
     private synchronized Connection getConnetcion(Integer no, String transactionId,DataSource dataSource) {
         Connection connection =null;
         List<TruncationConfig> configs = connectionHashMap.get(transactionId);
-        connectionHashMap.clear();
         if (configs == null) {
             TruncationConfig config = createConnection(no, dataSource);
+            log.info("create id:"+transactionId);
             connectionHashMap.put(transactionId, Arrays.asList(config));
             connection = config.getConnection();
         } else {
-            Optional<TruncationConfig> collect = configs.stream().filter(x -> x.getNo() == no).findFirst();
+            Optional<TruncationConfig> collect = configs.stream().filter(x -> x.getNo().intValue() == no).findFirst();
             if (!collect.isPresent()) {
                 //不存在
                 TruncationConfig config = createConnection(no, dataSource);
+                log.debug("create id:"+transactionId);
                 configs.add(config);
                 connection = config.getConnection();
             } else {
@@ -135,6 +139,7 @@ public class DbExecFactory {
      * @param transactionId
      */
     public void commit(String transactionId){
+        log.info("commit id:"+transactionId);
         List<TruncationConfig> truncationConfigs = connectionHashMap.get(transactionId);
         try {
             for (TruncationConfig config : truncationConfigs) {
@@ -146,7 +151,7 @@ public class DbExecFactory {
                 }
             }
         } catch (Exception e){
-            log.error("commit error",e);
+            log.info("commit error",e);
         }finally {
             if(connectionHashMap.containsKey(transactionId)) {
                 connectionHashMap.remove(transactionId);
@@ -155,6 +160,7 @@ public class DbExecFactory {
     }
 
     public void rollback(String transactionId){
+        log.info("rollback id:"+transactionId);
         List<TruncationConfig> truncationConfigs = connectionHashMap.get(transactionId);
         try {
             for (TruncationConfig config : truncationConfigs) {

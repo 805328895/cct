@@ -1,4 +1,4 @@
-package com.cct.sersvice2.rpcimpl;
+package com.cct.service2.rpcimpl;
 
 import com.cct.rpc.server.CctService;
 import com.cct.rpc.service.TestRpc;

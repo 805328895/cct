@@ -1,6 +1,7 @@
 package com.cct.service1;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.cct.rpc.an.CctTransactional;
 import com.cct.rpc.client.CctRpcClientProxy;
 import com.cct.rpc.service.TranactionService;
 import com.cct.service1.dao.AuthChannelMapper;
@@ -45,13 +46,16 @@ public class MyBatisTests {
         }
     }
 
+    @CctTransactional
     @Test
-    public void update(){
-        QueryWrapper<AuthChannel> q = new QueryWrapper<>();
-        q.eq("id",0);
-        AuthChannel u = new AuthChannel();
-        u.setAesKey("11");
-        authChannelMapper.update(u,q);
+    public void update() {
+
+        TestUser testUser = new TestUser();
+        testUser.setId(1);
+        testUser.setName("a");
+        Integer i = userMapper.updateById(testUser);
+
+
     }
     @Test
     public void insert(){
