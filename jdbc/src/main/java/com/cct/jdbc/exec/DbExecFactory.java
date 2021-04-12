@@ -1,13 +1,12 @@
 package com.cct.jdbc.exec;
 
-import com.cct.jdbc.config.TruncationConfig;
+import com.cct.jdbc.config.TransactionConfig;
 import com.cct.jdbc.factory.DataSourceFactory;
 import lombok.extern.slf4j.Slf4j;
 import model.CctKeyValue;
 import model.InsertResponse;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Component;
-import sun.awt.geom.AreaOp;
 
 import javax.annotation.Resource;
 import javax.sql.DataSource;
@@ -20,14 +19,14 @@ import java.util.concurrent.ConcurrentHashMap;
 @Configuration
 public class DbExecFactory {
 
-    private ConcurrentHashMap<String, List<TruncationConfig>> connectionHashMap = new ConcurrentHashMap();
+    private ConcurrentHashMap<String, List<TransactionConfig>> connectionHashMap = new ConcurrentHashMap();
 
     @Resource
     private DataSourceFactory dataSourceFactory;
 
     public List select(Integer no,String transactionId, String sql) throws Exception{
-        log.info("select id:"+transactionId);
         PreparedStatement preparedStatement= initPrepare(no,transactionId,sql,null);
+        log.info("select id:"+transactionId);
         ResultSet resultSet = preparedStatement.executeQuery();
         List list = new ArrayList();//new一个新的List
         ResultSetMetaData md =  resultSet.getMetaData();//将传进来的结果集用getMetaData方法用于获取数据集的数据（如列数）
@@ -43,15 +42,15 @@ public class DbExecFactory {
     }
 
     public Integer update(Integer no,String transactionId, String sql) throws Exception{
-        log.info("update id:"+transactionId);
         PreparedStatement preparedStatement= initPrepare(no,transactionId,sql,null);
+        log.info("update id:"+transactionId);
         Integer count = preparedStatement.executeUpdate();
         return count;
     }
 
     public InsertResponse insert(Integer no, String transactionId, String sql) throws Exception{
-        log.info("insert id:"+transactionId);
         PreparedStatement preparedStatement= initPrepare(no,transactionId,sql, Statement.RETURN_GENERATED_KEYS);
+        log.info("insert id:"+transactionId);
         Integer count = preparedStatement.executeUpdate();
         ResultSet rs = preparedStatement.getGeneratedKeys();
         ResultSetMetaData md = rs.getMetaData();
@@ -98,18 +97,18 @@ public class DbExecFactory {
      */
     private synchronized Connection getConnetcion(Integer no, String transactionId,DataSource dataSource) {
         Connection connection =null;
-        List<TruncationConfig> configs = connectionHashMap.get(transactionId);
+        List<TransactionConfig> configs = connectionHashMap.get(transactionId);
         if (configs == null) {
-            TruncationConfig config = createConnection(no, dataSource);
+            TransactionConfig config = createConnection(no, dataSource);
             log.info("create id:"+transactionId);
             connectionHashMap.put(transactionId, Arrays.asList(config));
             connection = config.getConnection();
         } else {
-            Optional<TruncationConfig> collect = configs.stream().filter(x -> x.getNo().intValue() == no).findFirst();
+            Optional<TransactionConfig> collect = configs.stream().filter(x -> x.getNo().intValue() == no).findFirst();
             if (!collect.isPresent()) {
                 //不存在
-                TruncationConfig config = createConnection(no, dataSource);
-                log.debug("create id:"+transactionId);
+                TransactionConfig config = createConnection(no, dataSource);
+                log.info("create id:"+transactionId);
                 configs.add(config);
                 connection = config.getConnection();
             } else {
@@ -119,17 +118,17 @@ public class DbExecFactory {
         return connection;
     }
 
-    private TruncationConfig createConnection(Integer no,DataSource dataSource){
+    private TransactionConfig createConnection(Integer no, DataSource dataSource){
         try {
             Connection connection = dataSource.getConnection();
             connection.setAutoCommit(false);
-            TruncationConfig config = new TruncationConfig();
+            TransactionConfig config = new TransactionConfig();
             config.setNo(no);
             config.setConnection(connection);
             return config;
         }catch (Exception e){
-            log.error("",e);
-            return null;
+            log.error("create connection Error",e);
+            throw  new CctException(-101,"create connection error",e);
         }
     }
 
@@ -140,18 +139,21 @@ public class DbExecFactory {
      */
     public void commit(String transactionId){
         log.info("commit id:"+transactionId);
-        List<TruncationConfig> truncationConfigs = connectionHashMap.get(transactionId);
+        List<TransactionConfig> truncationConfigs = connectionHashMap.get(transactionId);
         try {
-            for (TruncationConfig config : truncationConfigs) {
+            for (TransactionConfig config : truncationConfigs) {
                 try {
                     config.getConnection().commit();
+                    config.getConnection().close();
                 } catch (Exception e) {
                     //数据库记录的回滚
                     log.error("commit send error",e);
+                    throw  new CctException(-102,"commit data error",e);
                 }
             }
         } catch (Exception e){
             log.info("commit error",e);
+            throw  new CctException(-102,"commit data error",e);
         }finally {
             if(connectionHashMap.containsKey(transactionId)) {
                 connectionHashMap.remove(transactionId);
@@ -159,20 +161,28 @@ public class DbExecFactory {
         }
     }
 
-    public void rollback(String transactionId){
+    public  void rollback(String transactionId) {
         log.info("rollback id:"+transactionId);
-        List<TruncationConfig> truncationConfigs = connectionHashMap.get(transactionId);
+        List<TransactionConfig> transactionConfigs = connectionHashMap.get(transactionId);
         try {
-            for (TruncationConfig config : truncationConfigs) {
+            if(transactionConfigs == null){
+                return;
+            }
+            for (TransactionConfig config : transactionConfigs) {
                 try {
-                    config.getConnection().rollback();
+                    if(config.getConnection() !=null){
+                        config.getConnection().rollback();
+                        config.getConnection().close();
+                    }
                 } catch (Exception e) {
                     //数据库记录的回滚
                     log.error("roll back send error",e);
+                    throw e;
                 }
             }
         } catch (Exception e){
             log.error("roll back error",e);
+            throw  new CctException(-103,"roll back data error",e);
         }finally {
             if(connectionHashMap.containsKey(transactionId)) {
                 connectionHashMap.remove(transactionId);

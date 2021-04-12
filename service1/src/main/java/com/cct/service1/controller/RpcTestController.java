@@ -6,6 +6,7 @@ import com.cct.service1.cloud.model.IdVo;
 import com.cct.service1.cloud.service.Service2;
 import com.cct.service1.dao.UserMapper;
 import com.cct.service1.model.TestUser;
+import com.cct.service1.service.TestPoolService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,16 +26,24 @@ public class RpcTestController {
     @Resource
     Service2 service2;
 
-    @CctTransactional
+    @Resource
+    private TestPoolService testPoolService;
+
+//    @CctTransactional
 //    @Transactional
     @GetMapping("test")
     public void ttt() throws Exception{
-        TestUser testUser = new TestUser();
-        testUser.setName("a");
-        Integer i = userMapper.insert(testUser);
-        log.info("id:"+testUser.getId());
-        IdVo idVo = new IdVo();
-        idVo.setId(testUser.getId());
-        service2.test(idVo);
+        for( Integer i =0;i<1;i++) {
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    log.info("---------------");
+                    TestUser testUser = new TestUser();
+                    testUser.setName("a");
+                    testPoolService.insertUser(testUser);
+                }
+            }).start();
+        }
+
     }
 }

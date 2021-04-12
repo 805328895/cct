@@ -51,10 +51,12 @@ public class CctAspect {
                     m.setTransactionId(transId);
                     CctTransactionalFactory.setTransactional(m);
                     isFirst = true;   //第一个开启事物
+                    log.info("start cct first begin");
                 }
             }
             Object result = point.proceed();
             if(isFirst){
+                log.info("start cct first end");
                 service.commit(transId);
             }
             return result;

@@ -5,7 +5,7 @@ import lombok.Data;
 import java.sql.Connection;
 
 @Data
-public class TruncationConfig {
+public class TransactionConfig {
     private Integer no;
     private Connection connection;
 }
