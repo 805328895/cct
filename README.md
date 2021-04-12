@@ -5,5 +5,9 @@
 
 
 启动类上面加上注解 @EnableCct  开启注解
+
 方法上加上 @CctTransactional 开启分布式事物
+
 对代码无入侵
+
+微信：hongzp1987
