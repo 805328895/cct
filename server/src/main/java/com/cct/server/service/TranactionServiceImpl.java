@@ -16,19 +16,19 @@ public class TranactionServiceImpl implements TranactionService {
     @Resource
     private DbExecFactory dbExecFactory;
     @Override
-    public List select(Integer no, String transactionId, String sql) throws Exception {
-        return dbExecFactory.select(no,transactionId,sql);
+    public List select(Integer no, String transactionId, String sql,Boolean isCreate) throws Exception {
+        return dbExecFactory.select(no,transactionId,sql,isCreate);
     }
 
     @Override
-    public Integer update(Integer no, String transactionId, String sql) throws Exception {
-        return dbExecFactory.update(no,transactionId,sql);
+    public Integer update(Integer no, String transactionId, String sql,Boolean isCreate) throws Exception {
+        return dbExecFactory.update(no,transactionId,sql,isCreate);
 
     }
 
     @Override
-    public InsertResponse insert(Integer no, String transactionId, String sql) throws Exception {
-        return dbExecFactory.insert(no,transactionId,sql);
+    public InsertResponse insert(Integer no, String transactionId, String sql,Boolean isCreate) throws Exception {
+        return dbExecFactory.insert(no,transactionId,sql,isCreate);
     }
 
     @Override

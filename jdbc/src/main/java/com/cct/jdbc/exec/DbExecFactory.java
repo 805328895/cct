@@ -24,8 +24,8 @@ public class DbExecFactory {
     @Resource
     private DataSourceFactory dataSourceFactory;
 
-    public List select(Integer no,String transactionId, String sql) throws Exception{
-        PreparedStatement preparedStatement= initPrepare(no,transactionId,sql,null);
+    public List select(Integer no,String transactionId, String sql,Boolean isCreate) throws Exception{
+        PreparedStatement preparedStatement= initPrepare(no,transactionId,sql,null,isCreate);
         log.info("select id:"+transactionId);
         ResultSet resultSet = preparedStatement.executeQuery();
         List list = new ArrayList();//new一个新的List
@@ -41,15 +41,15 @@ public class DbExecFactory {
         return list;
     }
 
-    public Integer update(Integer no,String transactionId, String sql) throws Exception{
-        PreparedStatement preparedStatement= initPrepare(no,transactionId,sql,null);
+    public Integer update(Integer no,String transactionId, String sql,Boolean isCreate) throws Exception{
+        PreparedStatement preparedStatement= initPrepare(no,transactionId,sql,null,isCreate);
         log.info("update id:"+transactionId);
         Integer count = preparedStatement.executeUpdate();
         return count;
     }
 
-    public InsertResponse insert(Integer no, String transactionId, String sql) throws Exception{
-        PreparedStatement preparedStatement= initPrepare(no,transactionId,sql, Statement.RETURN_GENERATED_KEYS);
+    public InsertResponse insert(Integer no, String transactionId, String sql,Boolean isCreate) throws Exception{
+        PreparedStatement preparedStatement= initPrepare(no,transactionId,sql, Statement.RETURN_GENERATED_KEYS,isCreate);
         log.info("insert id:"+transactionId);
         Integer count = preparedStatement.executeUpdate();
         ResultSet rs = preparedStatement.getGeneratedKeys();
@@ -72,13 +72,13 @@ public class DbExecFactory {
         return insertResponse;
     }
 
-    public PreparedStatement initPrepare(Integer no,String transactionId,String sql,Integer statement) throws Exception{
+    public PreparedStatement initPrepare(Integer no,String transactionId,String sql,Integer statement,Boolean isCreate) throws Exception{
         Map<Integer, DataSource> dataSourceMap= dataSourceFactory.getDataSources();
         if(!dataSourceMap.containsKey(no)){
-            return null;
+            throw new Exception("db no error");
         }
         DataSource dataSource = dataSourceMap.get(no);
-        Connection connection= getConnetcion(no,transactionId,dataSource);
+        Connection connection= getConnetcion(no,transactionId,dataSource,isCreate);
         PreparedStatement preparedStatement=null;
         if(statement == null) {
             preparedStatement =connection.prepareStatement(sql);
@@ -95,20 +95,29 @@ public class DbExecFactory {
      * @param dataSource
      * @return
      */
-    private synchronized Connection getConnetcion(Integer no, String transactionId,DataSource dataSource) {
-        Connection connection =null;
+    private synchronized Connection getConnetcion(Integer no, String transactionId,DataSource dataSource,Boolean isCreate) {
+        Connection connection = null;
         List<TransactionConfig> configs = connectionHashMap.get(transactionId);
         if (configs == null) {
+            if (!isCreate) {
+                throw new CctException(-156,"timeout",new Exception("timeout"));
+            }
             TransactionConfig config = createConnection(no, dataSource);
-            log.info("create id:"+transactionId);
+            log.info("create id:" + transactionId);
+            createTimeTrigger(transactionId); // 创建取消任务
             connectionHashMap.put(transactionId, Arrays.asList(config));
             connection = config.getConnection();
+
         } else {
             Optional<TransactionConfig> collect = configs.stream().filter(x -> x.getNo().intValue() == no).findFirst();
             if (!collect.isPresent()) {
+                if (!isCreate) {
+                    throw new CctException(-156,"timeout",new Exception("timeout"));
+                }
                 //不存在
                 TransactionConfig config = createConnection(no, dataSource);
-                log.info("create id:"+transactionId);
+                log.info("create id:" + transactionId);
+                createTimeTrigger(transactionId); // 创建取消任务
                 configs.add(config);
                 connection = config.getConnection();
             } else {
@@ -139,9 +148,12 @@ public class DbExecFactory {
      */
     public void commit(String transactionId){
         log.info("commit id:"+transactionId);
-        List<TransactionConfig> truncationConfigs = connectionHashMap.get(transactionId);
+        List<TransactionConfig> transactionConfigs = connectionHashMap.get(transactionId);
         try {
-            for (TransactionConfig config : truncationConfigs) {
+            if(transactionConfigs == null){
+                throw new CctException(-156,"timeout",new Exception("timeout"));
+            }
+            for (TransactionConfig config : transactionConfigs) {
                 try {
                     config.getConnection().commit();
                     config.getConnection().close();
@@ -188,5 +200,20 @@ public class DbExecFactory {
                 connectionHashMap.remove(transactionId);
             }
         }
+    }
+
+
+    private void createTimeTrigger(String transactionId){
+        Timer timer = new Timer();
+        //开始等待时间
+        long delay = 5000L;
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                log.info("------------ cancle");
+                rollback(transactionId);
+                timer.cancel();
+            }
+        }, delay);
     }
 }

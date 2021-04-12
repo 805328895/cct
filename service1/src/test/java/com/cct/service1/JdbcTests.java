@@ -17,7 +17,7 @@ public class JdbcTests {
     public void select() throws Exception{
         CctRpcClientProxy proxy = new CctRpcClientProxy("127.0.0.1",1010);
         TranactionService service = (TranactionService) proxy.getProxy(TranactionService.class);
-        List abcd = service.select(1,"1111","select * from bb;");
+        List abcd = service.select(1,"1111","select * from bb;",true);
         System.out.println(abcd);
     }
 }

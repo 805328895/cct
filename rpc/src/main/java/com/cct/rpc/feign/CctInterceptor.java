@@ -1,5 +1,7 @@
 package com.cct.rpc.feign;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
 import com.cct.rpc.client.CctRpcClientProxy;
 import com.cct.rpc.local.CctTransactionModel;
 import com.cct.rpc.local.CctTransactionalFactory;
@@ -13,14 +15,13 @@ import org.springframework.web.servlet.ModelAndView;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.util.List;
+
 @Slf4j
 @Configuration
 public class CctInterceptor implements HandlerInterceptor {
 
-    @Value("${cct.server.host}")
-    private String cctHost;
-    @Value("${cct.server.port}")
-    private Integer cctPort;
+
     @Value("${cct.server.no}")
     private Integer cctNo;
 
@@ -28,9 +29,13 @@ public class CctInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler){
         String transactionId = request.getHeader("cct-transaction");
         if(!StringUtils.isEmpty(transactionId)){
+            List<Integer> create = JSONArray.parseArray(request.getHeader("cct-create"),Integer.TYPE);
+            String host = request.getHeader("cct-host");
+            Integer port = Integer.parseInt(request.getHeader("cct-port"));
             CctTransactionModel m = new CctTransactionModel();
             m.setNo(cctNo);
-            CctRpcClientProxy proxy = new CctRpcClientProxy(cctHost,cctPort);
+            m.setHasCreate(create);
+            CctRpcClientProxy proxy = new CctRpcClientProxy(host,port);
             TranactionService  service = (TranactionService) proxy.getProxy(TranactionService.class);
             m.setService(service);
             m.setTransactionId(transactionId);

@@ -149,8 +149,8 @@
     </appender>
 
 
-    <logger name="com.cct.jdbc.exec" level="OFF">
-    </logger>
+<!--    <logger name="com.cct.jdbc.exec" level="OFF">-->
+<!--    </logger>-->
 
 
 

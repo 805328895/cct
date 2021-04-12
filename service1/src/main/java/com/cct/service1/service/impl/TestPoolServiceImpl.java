@@ -18,18 +18,15 @@ public class TestPoolServiceImpl implements TestPoolService {
     private Service2 service2;
     @Resource
     private UserMapper userMapper;
-    @CctTransactional
+//    @CctTransactional
     @Override
     public void insertUser(TestUser testUser) {
         Integer i = userMapper.insert(testUser);
         log.info("id:" + testUser.getId());
         IdVo idVo = new IdVo();
         idVo.setId(testUser.getId());
-        service2.test(idVo);
-        try {
-            Thread.sleep(3000);
-        }catch (Exception e){
 
-        }
+        service2.test(idVo);
+
     }
 }

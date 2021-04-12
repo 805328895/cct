@@ -4,6 +4,9 @@ import com.cct.rpc.client.CctRpcClientProxy;
 import com.cct.rpc.service.TranactionService;
 import lombok.Data;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Data
 public class CctTransactionModel {
     /**
@@ -21,6 +24,10 @@ public class CctTransactionModel {
      */
     private Integer level;
 
+    private String host;
+
+    private Integer port;
+
 
 //    /**
 //     * 代理
@@ -30,4 +37,11 @@ public class CctTransactionModel {
      * 远程rpc
      */
     private TranactionService service;
+
+//    //是否创建连接
+//    private Boolean isCreate = true;
+
+    //已经创建的连接  按 no 来
+    List<Integer> hasCreate = new ArrayList<>();
+
 }

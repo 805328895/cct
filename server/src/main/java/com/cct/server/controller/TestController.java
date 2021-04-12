@@ -23,6 +23,6 @@ public class TestController {
     @GetMapping("")
     public void test() throws Exception{
         dataSourceFactory.init();
-        tranactionService.select(1,"1111","select * from bb;");
+        tranactionService.select(1,"1111","select * from bb;",true);
     }
 }

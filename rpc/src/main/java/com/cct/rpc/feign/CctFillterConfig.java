@@ -1,39 +1,54 @@
 package com.cct.rpc.feign;
 
 import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.serializer.SerializerFeature;
-import com.alibaba.fastjson.support.config.FastJsonConfig;
-import com.alibaba.fastjson.support.spring.FastJsonHttpMessageConverter;
-import com.sun.tools.internal.ws.wscompile.AuthInfo;
+import com.cct.rpc.local.CctTransactionModel;
+import com.cct.rpc.local.CctTransactionalFactory;
 import feign.RequestInterceptor;
-import org.springframework.beans.BeansException;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.MediaType;
-import org.springframework.http.converter.HttpMessageConverter;
-import org.springframework.util.ResourceUtils;
-import org.springframework.util.StringUtils;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.servlet.config.annotation.*;
-
-import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.List;
 
 /**
  * @类描述
  * @注意：
  */
+@Slf4j
 @Configuration
 @EnableWebMvc
 @ComponentScan
 public class CctFillterConfig extends WebMvcConfigurerAdapter  {
+
+    @Bean
+    public RequestInterceptor headerInterceptor() {
+        return requestTemplate -> {
+            ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder
+                    .getRequestAttributes();
+            if(attributes != null) {
+                HttpServletRequest request = attributes.getRequest();
+                Enumeration<String> headerNames = request.getHeaderNames();
+                if (headerNames != null) {
+                    while (headerNames.hasMoreElements()) {
+                        String name = headerNames.nextElement();
+                        String values = request.getHeader(name);
+                        requestTemplate.header(name, values);
+                    }
+                }
+                CctTransactionModel model = CctTransactionalFactory.getTranactional();
+                if(model != null){
+                    requestTemplate.header("cct-transaction", model.getTransactionId());
+                    requestTemplate.header("cct-create", JSON.toJSONString(model.getHasCreate()));
+                    requestTemplate.header("cct-host", model.getHost());
+                    requestTemplate.header("cct-port", String.valueOf(model.getPort()));
+                }
+            }
+        };
+    }
 
     public CctFillterConfig(){
         super();

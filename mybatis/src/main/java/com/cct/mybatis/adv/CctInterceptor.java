@@ -62,19 +62,25 @@ public class CctInterceptor implements Interceptor {
 
         if(transactionModel !=null) {
             log.info("cct rpc");
+            Boolean create = transactionModel.getHasCreate().stream().filter(x->x.intValue() == transactionModel.getNo()).count() ==0;
             TranactionService service = transactionModel.getService();
             //开启分布式事物，拦截数据
             SqlCommandType commandType = mappedStatement.getSqlCommandType();
             if (commandType.name().toUpperCase().equals("INSERT")) {
-
-                InsertResponse response = service.insert(transactionModel.getNo(), transactionModel.getTransactionId(), sql);
+                InsertResponse response = service.insert(transactionModel.getNo(), transactionModel.getTransactionId(), sql,create);
+                if(create) {
+                    transactionModel.getHasCreate().add(transactionModel.getNo());
+                }
                 if (response.getKeyValues() != null && response.getKeyValues().size() == 1) {
                     //回写主键
                     setValue(parameter, response.getKeyValues().get(0).get(0).getName(), response.getKeyValues().get(0).get(0).getValue());
                 }
                 return response.getCount();
             } else if (commandType.name().toUpperCase().equals("SELECT")) {
-                List list = service.select(transactionModel.getNo(), transactionModel.getTransactionId(), sql);
+                List list = service.select(transactionModel.getNo(), transactionModel.getTransactionId(), sql,create);
+                if(create) {
+                    transactionModel.getHasCreate().add(transactionModel.getNo());
+                }
                 //序列化
                 List result = new ArrayList();
                 for (Object o : list) {
@@ -86,7 +92,10 @@ public class CctInterceptor implements Interceptor {
                 }
                 return result;
             } else if (commandType.name().toUpperCase().equals("UPDATE")) {
-                Integer count = service.update(transactionModel.getNo(), transactionModel.getTransactionId(), sql);
+                Integer count = service.update(transactionModel.getNo(), transactionModel.getTransactionId(), sql,create);
+                if(create) {
+                    transactionModel.getHasCreate().add(transactionModel.getNo());
+                }
                 return count;
             }
         }
