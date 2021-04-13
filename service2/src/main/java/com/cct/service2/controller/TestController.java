@@ -22,6 +22,12 @@ public class TestController {
         log.info(""+vo.getId());
         TestUser testUser = userMapper.selectById(vo.getId());
         log.info(JSON.toJSONString(testUser));
+        if(testUser == null){
+            testUser = new TestUser();
+            testUser.setId(vo.getId());
+            testUser.setName("abd");
+            userMapper.insert(testUser);
+        }
 
     }
 }

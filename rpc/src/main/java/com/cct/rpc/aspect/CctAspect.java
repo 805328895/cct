@@ -53,12 +53,12 @@ public class CctAspect {
                     m.setHost(cctHost);
                     m.setPort(cctPort);
                     isFirst = true;   //第一个开启事物
-                    log.info("start cct first begin");
+                    log.info("start cct");
                 }
             }
             Object result = point.proceed();
             if(isFirst){
-                log.info("start cct first end");
+                log.info("first cct");
                 service.commit(transId);
             }
             return result;

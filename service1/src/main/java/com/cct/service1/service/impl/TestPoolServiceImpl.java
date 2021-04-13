@@ -25,7 +25,6 @@ public class TestPoolServiceImpl implements TestPoolService {
         log.info("id:" + testUser.getId());
         IdVo idVo = new IdVo();
         idVo.setId(testUser.getId());
-
         service2.test(idVo);
 
     }

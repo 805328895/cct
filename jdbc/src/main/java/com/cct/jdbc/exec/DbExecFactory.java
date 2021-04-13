@@ -5,6 +5,7 @@ import com.cct.jdbc.factory.DataSourceFactory;
 import lombok.extern.slf4j.Slf4j;
 import model.CctKeyValue;
 import model.InsertResponse;
+import org.springframework.beans.BeanUtils;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Component;
 
@@ -12,12 +13,16 @@ import javax.annotation.Resource;
 import javax.sql.DataSource;
 import java.sql.*;
 import java.util.*;
+import java.util.Date;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
 @Configuration
 public class DbExecFactory {
+
+    private Long timout = 30000L;
 
     private ConcurrentHashMap<String, List<TransactionConfig>> connectionHashMap = new ConcurrentHashMap();
 
@@ -95,7 +100,7 @@ public class DbExecFactory {
      * @param dataSource
      * @return
      */
-    private synchronized Connection getConnetcion(Integer no, String transactionId,DataSource dataSource,Boolean isCreate) {
+    private  Connection getConnetcion(Integer no, String transactionId,DataSource dataSource,Boolean isCreate) {
         Connection connection = null;
         List<TransactionConfig> configs = connectionHashMap.get(transactionId);
         if (configs == null) {
@@ -115,11 +120,24 @@ public class DbExecFactory {
                     throw new CctException(-156,"timeout",new Exception("timeout"));
                 }
                 //不存在
+                List<TransactionConfig> listSort = configs.stream().sorted(Comparator.comparing(TransactionConfig::getTime)).collect(Collectors.toList());
+                Long timer =listSort.get(0).getTime();
                 TransactionConfig config = createConnection(no, dataSource);
                 log.info("create id:" + transactionId);
-                createTimeTrigger(transactionId); // 创建取消任务
-                configs.add(config);
-                connection = config.getConnection();
+                if((config.getTime()-timer)/1000>(timout-2)){
+                    log.info("close id:"+ transactionId);
+                    try {
+                        config.getConnection().close();
+                    }catch (Exception e){
+                        log.error("close id error",e);
+                    }
+                }else {
+                    List<TransactionConfig> list = new ArrayList<>();
+                    list.addAll(configs);
+                    list.add(config);
+                    connectionHashMap.put(transactionId,list);
+                    connection = config.getConnection();
+                }
             } else {
                 connection = collect.get().getConnection();
             }
@@ -134,6 +152,7 @@ public class DbExecFactory {
             TransactionConfig config = new TransactionConfig();
             config.setNo(no);
             config.setConnection(connection);
+            config.setTime(new Date().getTime());
             return config;
         }catch (Exception e){
             log.error("create connection Error",e);
@@ -206,7 +225,7 @@ public class DbExecFactory {
     private void createTimeTrigger(String transactionId){
         Timer timer = new Timer();
         //开始等待时间
-        long delay = 5000L;
+        long delay = timout;
         timer.schedule(new TimerTask() {
             @Override
             public void run() {

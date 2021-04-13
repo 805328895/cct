@@ -36,7 +36,7 @@ import java.util.regex.Matcher;
                 Object.class, RowBounds.class, ResultHandler.class})})
 @SuppressWarnings({"unchecked", "rawtypes"})
 @Component
-public class CctInterceptor implements Interceptor {
+public class CctMyBatisInterceptor implements Interceptor {
     @Override
     public Object intercept(Invocation invocation) throws Throwable {
         // 获取xml中的一个select/update/insert/delete节点，是一条SQL语句

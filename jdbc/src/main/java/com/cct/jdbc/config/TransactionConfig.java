@@ -8,4 +8,5 @@ import java.sql.Connection;
 public class TransactionConfig {
     private Integer no;
     private Connection connection;
+    private Long time;
 }
