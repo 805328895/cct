@@ -24,7 +24,7 @@ public class TestController {
         log.info(JSON.toJSONString(testUser));
         if(testUser == null){
             testUser = new TestUser();
-            testUser.setId(vo.getId());
+//            testUser.setId(vo.getId());
             testUser.setName("abd");
             userMapper.insert(testUser);
         }

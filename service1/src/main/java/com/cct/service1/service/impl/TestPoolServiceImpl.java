@@ -8,6 +8,7 @@ import com.cct.service1.model.TestUser;
 import com.cct.service1.service.TestPoolService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 
@@ -18,7 +19,9 @@ public class TestPoolServiceImpl implements TestPoolService {
     private Service2 service2;
     @Resource
     private UserMapper userMapper;
-//    @CctTransactional
+
+    @CctTransactional
+//    @Transactional
     @Override
     public void insertUser(TestUser testUser) {
         Integer i = userMapper.insert(testUser);
@@ -26,6 +29,7 @@ public class TestPoolServiceImpl implements TestPoolService {
         IdVo idVo = new IdVo();
         idVo.setId(testUser.getId());
         service2.test(idVo);
+//        service2.test1(idVo);
 
     }
 }

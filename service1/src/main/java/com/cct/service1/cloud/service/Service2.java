@@ -11,4 +11,6 @@ public interface Service2 {
 
     @PostMapping("/test/test")
     void test(@RequestBody IdVo id);
+    @PostMapping("/test/test1")
+    void test1(@RequestBody IdVo id);
 }

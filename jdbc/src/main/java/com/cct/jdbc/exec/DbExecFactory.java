@@ -124,7 +124,7 @@ public class DbExecFactory {
                 Long timer =listSort.get(0).getTime();
                 TransactionConfig config = createConnection(no, dataSource);
                 log.info("create id:" + transactionId);
-                if((config.getTime()-timer)/1000>(timout-2)){
+                if((config.getTime()-timer)>((timout*1000)-5)){
                     log.info("close id:"+ transactionId);
                     try {
                         config.getConnection().close();
@@ -170,6 +170,14 @@ public class DbExecFactory {
         List<TransactionConfig> transactionConfigs = connectionHashMap.get(transactionId);
         try {
             if(transactionConfigs == null){
+                throw new CctException(-156,"timeout",new Exception("timeout"));
+            }
+            List<TransactionConfig> listSort = transactionConfigs.stream().sorted(Comparator.comparing(TransactionConfig::getTime)).collect(Collectors.toList());
+            Long timer =listSort.get(0).getTime();
+            Long nowTimer = new Date().getTime();
+            if((nowTimer-timer)/1000>timout){
+                //超时
+                rollback(transactionId);
                 throw new CctException(-156,"timeout",new Exception("timeout"));
             }
             for (TransactionConfig config : transactionConfigs) {

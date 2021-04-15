@@ -33,17 +33,17 @@ public class RpcTestController {
 //    @Transactional
     @GetMapping("test")
     public void ttt() throws Exception{
-        for( Integer i =0;i<50;i++) {
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
+//        for( Integer i =0;i<50;i++) {
+//            new Thread(new Runnable() {
+//                @Override
+//                public void run() {
 //                    log.info("---------------");
                     TestUser testUser = new TestUser();
                     testUser.setName("a");
                     testPoolService.insertUser(testUser);
-                }
-            }).start();
-        }
+//                }
+//            }).start();
+//        }
 
     }
 }
